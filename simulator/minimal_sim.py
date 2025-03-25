@@ -31,6 +31,11 @@ class MinimalSim:
 
     def place_order(self, ts, size, side, price):
         self.order_id += 1
+        mid = self.cur_price
+        dist = abs(mid - price)
+        k_fill = 1.5  
+        fill_prob = 1 - np.exp(-k_fill * dist)
+
         order = SimpleNamespace(
             order_id=self.order_id,
             ts=ts,
@@ -38,16 +43,18 @@ class MinimalSim:
             side=side,
             price=price
         )
-      
-        if np.random.rand() < 0.5:
+
+        if np.random.rand() < fill_prob:
             trade = SimpleNamespace(
                 order_id=order.order_id,
                 side=side,
                 size=size,
                 ts=ts,
+                price=price,
                 type='own_trade'
             )
             return trade
+
         self.orders[self.order_id] = order
         return order
 

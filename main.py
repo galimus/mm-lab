@@ -1,59 +1,49 @@
 from strategy.stoikov import StoikovStrategy
-from simulator.minimal_sim import MinimalSim
+from simulator.real_data_sim import RealDataSim
 import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 
+sns.set_style("whitegrid")  
 
-gamma = 0.05
-k = 1.5
-sigma = 0.1
-terminal_time = True
-adjust_delay = 1
-order_size = 1
-min_order_size = 1
-precision = 2
+sim = RealDataSim('BTCUSDT_1min.csv', spread=1.0, k_bid=1.5, k_ask=1.5)
+sigma = sim.realized_sigma
+print(f"Realized sigma: {sigma:.4f}")
 
-
-sim = MinimalSim(T=200, start_price=100.0, sigma=sigma)
 strategy = StoikovStrategy(
     sim=sim,
-    gamma=gamma,
-    k=k,
+    gamma=0.05,
+    k=1.5,
     sigma=sigma,
-    terminal_time=terminal_time,
-    adjust_delay=adjust_delay,
-    order_size=order_size,
-    min_order_size=min_order_size,
-    precision=precision
+    terminal_time=True,
+    adjust_delay=1,
+    order_size=1,
+    min_order_size=1,
+    precision=2
 )
-
 
 trades, md, updates, orders = strategy.run()
 
-
+# --- Анализ ---
 mid_prices = [u.price for u in md]
-inventory = []
-pnl = []
-cash = 0
-pos = 0
+inventory, pnl, pos, cash = [], [], 0, 0
 
-for i in range(len(mid_prices)):
-    mid = mid_prices[i]
-    trades_at_i = [tr for tr in trades if tr.ts == i]
-    
-    for trade in trades_at_i:
-        price = getattr(trade, 'price', mid)  
-        size = trade.size
-        side = trade.side
-
-        if side == 'BID':
-            pos += size
-            cash -= price * size
+for i, mid in enumerate(mid_prices):
+    ts_trades = [tr for tr in trades if tr.ts == i]
+    for tr in ts_trades:
+        price = tr.price
+        if tr.side == 'BID':
+            pos += tr.size
+            cash -= price * tr.size
         else:
-            pos -= size
-            cash += price * size
-    
+            pos -= tr.size
+            cash += price * tr.size
     inventory.append(pos)
     pnl.append(cash + pos * mid)
+
+# --- Графики ---
+inv_series = pd.Series(inventory)
+pnl_series = pd.Series(pnl)
 
 plt.figure(figsize=(12, 9))
 
@@ -63,17 +53,21 @@ plt.title("Mid Price")
 plt.legend()
 
 plt.subplot(3, 1, 2)
-plt.plot(inventory, color='orange', label='Inventory')
+plt.plot(inv_series, color='orange', alpha=0.3, linestyle='--', label='Raw Inventory')
+plt.plot(inv_series.rolling(5).mean(), color='orange', label='Inventory (SMA)')
 plt.title("Inventory Over Time")
 plt.legend()
 
 plt.subplot(3, 1, 3)
-plt.plot(pnl, color='green', label='PnL')
+plt.plot(pnl_series, color='green', label='PnL')
 plt.title("PnL Over Time")
 plt.xlabel("Time")
 plt.legend()
 
 plt.tight_layout()
 plt.show()
+
+
+
 
 

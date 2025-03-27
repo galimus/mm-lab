@@ -1,6 +1,5 @@
 import math
 from collections import OrderedDict
-from typing import List, Union
 
 class StoikovStrategy:
     def __init__(self, sim, gamma, k, sigma, terminal_time, adjust_delay,
@@ -31,6 +30,7 @@ class StoikovStrategy:
         last_readjust = 0
         t_min = self.sim.md_queue[0].receive_ts
         t_max = self.sim.md_queue[-1].receive_ts
+        max_inventory = 5  
 
         while True:
             self.cur_time, updates = self.sim.tick()
@@ -43,30 +43,19 @@ class StoikovStrategy:
                     self.best_bid, self.best_ask = update_best_positions(
                         self.best_bid, self.best_ask, update)
                     self.md_list.append(update)
-                elif update.type == 'own_trade':
-                    if update.side == 'BID':
-                        self.cur_pos += update.size
-                    else:
-                        self.cur_pos -= update.size
-                    self.trades_list.append(update)
-                    if update.order_id in self.ongoing_orders:
-                        self.ongoing_orders.pop(update.order_id)
 
             if self.cur_time - last_readjust > self.adjust_delay:
                 last_readjust = self.cur_time
+
                 while self.ongoing_orders:
                     order_id, _ = self.ongoing_orders.popitem(last=False)
                     self.sim.cancel_order(self.cur_time, order_id)
 
-                if self.terminal_time:
-                    t = (self.cur_time - t_min) / (t_max - t_min)
-                    self.T_minus_t = 1 - t
-                else:
-                    self.T_minus_t = 1
+                self.T_minus_t = 1 - (self.cur_time - t_min) / (t_max - t_min) if self.terminal_time else 1
 
                 central_price = self.get_central_price()
                 if central_price is None:
-                    break
+                    continue
 
                 spread = self.gamma * self.sigma**2 * self.T_minus_t + \
                          2 / self.gamma * math.log(1 + self.gamma / self.k)
@@ -74,8 +63,10 @@ class StoikovStrategy:
                 price_bid = round(central_price - spread / 2, self.precision)
                 price_ask = round(central_price + spread / 2, self.precision)
 
-                self.place_order(self.cur_time, self.order_size, 'BID', price_bid)
-                self.place_order(self.cur_time, self.order_size, 'ASK', price_ask)
+                if self.cur_pos < max_inventory:
+                    self.place_order(self.cur_time, self.order_size, 'BID', price_bid)
+                if self.cur_pos > -max_inventory:
+                    self.place_order(self.cur_time, self.order_size, 'ASK', price_ask)
 
         return self.trades_list, self.md_list, self.updates_list, self.all_orders
 
@@ -86,7 +77,7 @@ class StoikovStrategy:
         indiff_price = midprice - (self.cur_pos / self.min_order_size) * \
                        self.gamma * self.sigma**2 * self.T_minus_t
         return indiff_price
-    
+
     def place_order(self, ts, size, side, price):
         order = self.sim.place_order(ts, size, side, price)
         if getattr(order, 'type', None) == 'own_trade':
@@ -100,11 +91,10 @@ class StoikovStrategy:
             self.all_orders.append(order)
 
 
-    
-
 def update_best_positions(best_bid, best_ask, update):
     if update.bid_price is not None:
         best_bid = max(best_bid, update.bid_price)
     if update.ask_price is not None:
         best_ask = min(best_ask, update.ask_price)
     return best_bid, best_ask
+

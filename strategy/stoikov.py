@@ -57,11 +57,20 @@ class StoikovStrategy:
                 if central_price is None:
                     continue
 
-                spread = self.gamma * self.sigma**2 * self.T_minus_t + \
-                         2 / self.gamma * math.log(1 + self.gamma / self.k)
+                # --- calculating base  spread Stoikov ---
+                base_spread = self.gamma * self.sigma**2 * self.T_minus_t + \
+                              2 / self.gamma * math.log(1 + self.gamma / self.k)
 
-                price_bid = round(central_price - spread / 2, self.precision)
-                price_ask = round(central_price + spread / 2, self.precision)
+                # --- penalty for risk ---
+                lambda_inventory = 0.02 #
+                spread = base_spread + lambda_inventory * (abs(self.cur_pos) ** 2)
+
+                # --- Inventory Skew ---
+                skew = -self.cur_pos * self.gamma * self.sigma**2 * self.T_minus_t
+
+                
+                price_bid = round(central_price - spread / 2 + skew, self.precision)
+                price_ask = round(central_price + spread / 2 + skew, self.precision)
 
                 if self.cur_pos < max_inventory:
                     self.place_order(self.cur_time, self.order_size, 'BID', price_bid)
@@ -90,11 +99,12 @@ class StoikovStrategy:
             self.ongoing_orders[order.order_id] = order
             self.all_orders.append(order)
 
-
 def update_best_positions(best_bid, best_ask, update):
     if update.bid_price is not None:
         best_bid = max(best_bid, update.bid_price)
     if update.ask_price is not None:
         best_ask = min(best_ask, update.ask_price)
     return best_bid, best_ask
+
+
 

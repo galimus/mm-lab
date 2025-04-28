@@ -1,8 +1,28 @@
-from strategy.stoikov import StoikovStrategy
-from simulator.real_data_sim import RealDataSim
+import ccxt
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
+from strategy.stoikov import StoikovStrategy
+from simulator.real_data_sim import RealDataSim
+import time
+
+
+print("Fetching fresh data from Binance...")
+
+symbol = 'BTC/USDT'
+timeframe = '1m'
+since = int((time.time() - 60 * 60 * 24) * 1000)  
+limit = 1000
+
+exchange = ccxt.binance()
+ohlcv = exchange.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
+
+df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+df.to_csv('BTCUSDT_1min.csv', index=False)
+
+print("Data fetched and saved.")
+
 
 sns.set_style("whitegrid")  
 
@@ -24,7 +44,7 @@ strategy = StoikovStrategy(
 
 trades, md, updates, orders = strategy.run()
 
-# --- Анализ ---
+
 mid_prices = [u.price for u in md]
 inventory, pnl, pos, cash = [], [], 0, 0
 
@@ -41,7 +61,6 @@ for i, mid in enumerate(mid_prices):
     inventory.append(pos)
     pnl.append(cash + pos * mid)
 
-# --- Графики ---
 inv_series = pd.Series(inventory)
 pnl_series = pd.Series(pnl)
 

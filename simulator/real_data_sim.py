@@ -3,6 +3,7 @@ import numpy as np
 import math
 import random
 from types import SimpleNamespace
+from strategy.execution import ExecutionModel  
 
 class RealDataSim:
     def __init__(self, csv_path, spread=1.0, k_bid=1.5, k_ask=1.5):
@@ -27,6 +28,8 @@ class RealDataSim:
             if not np.isnan(row['close'])
         ]
 
+        self.execution_model = ExecutionModel()  
+
     def tick(self):
         if self.t >= len(self.md_queue):
             return self.t, None
@@ -39,21 +42,24 @@ class RealDataSim:
             return self._limit_order(ts, size, side, price)
 
         mid = self.md_queue[ts - 1].price
+        new_mid = self.md_queue[ts].price if ts < len(self.md_queue) else mid
+        price_movement = new_mid - mid
 
-        if side == 'BID':
-            distance = max(mid - price, 0)
-            fill_prob = 1 - math.exp(-self.k_bid * distance)
-        else:
-            distance = max(price - mid, 0)
-            fill_prob = 1 - math.exp(-self.k_ask * distance)
+        price_distance = abs(price - mid) / mid
+        queue_position_ratio = 0.5  
 
-        if random.random() < fill_prob:
+        result = self.execution_model.simulate_fill(
+            queue_position_ratio, price_distance, price_movement
+        )
+
+        if result in ["filled", "slippage"]:
+            exec_price = price if result == "filled" else new_mid  
             return SimpleNamespace(
                 order_id=ts,
                 ts=ts,
                 side=side,
                 size=size,
-                price=price,
+                price=exec_price,
                 type='own_trade'
             )
         else:
@@ -70,4 +76,5 @@ class RealDataSim:
         )
 
     def cancel_order(self, ts, order_id):
-        pass
+        pass  
+

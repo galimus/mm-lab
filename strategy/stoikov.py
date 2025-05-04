@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import pandas as pd
 from collections import OrderedDict
 
 class StoikovStrategy:
@@ -27,21 +28,34 @@ class StoikovStrategy:
         self.T_minus_t = 1
         self.cur_pos = 0
 
-       
+        # Risk management
         self.max_drawdown = 3000
         self.max_pnl = 0
-        self.pause_duration = 30     
-        self.pause_until = -1       
+        self.pause_duration = 30
+        self.pause_until = -1
+        self.drawdown_breached = False
 
+        # Volatility adaptiveness
         self.recent_prices = []
         self.volatility_window = 30
         self.volatility_threshold = 0.0015
-
         self.default_k = k
         self.default_gamma = gamma
 
+        
+        self.max_hold_steps = 60  # Max time in one direction
+        self.hold_start_time = 0
+        self.prev_sign = 0
+
         self.pnl = 0
         self.cash = 0
+
+       
+        self.logs = []
+        self.realized_pnl_list = []
+        self.unrealized_pnl_list = []
+        self.pnl_list = []
+        self.time_list = []
 
     def run(self):
         last_readjust = 0
@@ -74,11 +88,10 @@ class StoikovStrategy:
                 if central_price is None:
                     continue
 
-                
+                # --- Volatility Adaptation ---
                 self.recent_prices.append(central_price)
                 if len(self.recent_prices) > self.volatility_window:
                     self.recent_prices.pop(0)
-
                     log_returns = [
                         math.log(self.recent_prices[i + 1] / self.recent_prices[i])
                         for i in range(len(self.recent_prices) - 1)
@@ -86,6 +99,8 @@ class StoikovStrategy:
                     volatility = np.std(log_returns)
 
                     if volatility > self.volatility_threshold:
+                        print(f"⚠️ High volatility: {volatility:.5f}. Increasing risk aversion at t={self.cur_time}")
+                        self.logs.append({'time': self.cur_time, 'event': 'high_volatility'})
                         self.k = self.default_k * 1.5
                         self.gamma = self.default_gamma * 1.5
                     else:
@@ -99,14 +114,39 @@ class StoikovStrategy:
                 self.max_pnl = max(self.max_pnl, self.pnl)
                 drawdown = self.max_pnl - self.pnl
 
-                if drawdown > self.max_drawdown and self.cur_time > self.pause_until:
+                self.realized_pnl_list.append(self.cash)
+                self.unrealized_pnl_list.append(unrealized)
+                self.pnl_list.append(self.pnl)
+                self.time_list.append(self.cur_time)
+
+                if drawdown > self.max_drawdown and not self.drawdown_breached:
                     print(f"‼️ Drawdown = {drawdown:.2f}, pausing trading for {self.pause_duration} steps.")
                     self.pause_until = self.cur_time + self.pause_duration
+                    self.drawdown_breached = True
+                    self.logs.append({'time': self.cur_time, 'event': 'drawdown_pause'})
+
+                if self.cur_time >= self.pause_until and drawdown < self.max_drawdown and self.drawdown_breached:
+                    print(f"✅ Drawdown recovered. Resuming trading at time {self.cur_time}.")
+                    self.drawdown_breached = False
+                    self.logs.append({'time': self.cur_time, 'event': 'resume_trading'})
 
                 if self.cur_time < self.pause_until:
-                    continue  
+                    continue
 
-                # --- Spread and Skew ---
+                
+                current_sign = int(np.sign(self.cur_pos))
+                if current_sign != self.prev_sign:
+                    self.prev_sign = current_sign
+                    self.hold_start_time = self.cur_time
+
+                if abs(self.cur_pos) >= max_inventory and (self.cur_time - self.hold_start_time) > self.max_hold_steps:
+                    print(f"⚠️ Forced unwind at t={self.cur_time} to prevent stuck position.")
+                    
+                    self.place_order(self.cur_time, abs(self.cur_pos), 'ASK' if self.cur_pos > 0 else 'BID', central_price)
+                    self.logs.append({'time': self.cur_time, 'event': 'forced_unwind'})
+                    continue
+
+            
                 base_spread = self.gamma * self.sigma**2 * self.T_minus_t + \
                               2 / self.gamma * math.log(1 + self.gamma / self.k)
                 lambda_inventory = 0.02
@@ -121,6 +161,7 @@ class StoikovStrategy:
                 if self.cur_pos > -max_inventory:
                     self.place_order(self.cur_time, self.order_size, 'ASK', price_ask)
 
+        pd.DataFrame(self.logs).to_csv('logs.csv', index=False)
         return self.trades_list, self.md_list, self.updates_list, self.all_orders
 
     def get_central_price(self):
@@ -151,7 +192,6 @@ def update_best_positions(best_bid, best_ask, update):
     if update.ask_price is not None:
         best_ask = min(best_ask, update.ask_price)
     return best_bid, best_ask
-
 
 
 

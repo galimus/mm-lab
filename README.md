@@ -68,3 +68,15 @@ MM-LAB/
 - No live trading or exchange connectivity (simulation-only mode)  
 - Reduced-form modelling of queue position, latency and hidden liquidity  
 - Fixed evaluation windows to ensure auditability and comparability  
+
+---
+
+# How to Run
+
+The project can be launched using the `run.sh` script. By default, it installs dependencies, ensures the script is executable, and starts the Streamlit app.  
+
+### Usage
+- **Normal mode **  
+  ```bash
+  ./run.sh
+

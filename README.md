@@ -61,7 +61,7 @@ MM-LAB/
 # Acceptance Criteria
 
 - Deterministic replay (fixed seeds); 2,000 snapshots complete within minutes  
-- Metrics: cumulative PnL, Sharpe Ratio, Sortino Ratio, maximum drawdown (USDT), inventory st.dev., average trade size, total trades, fill rate (%), turnover, average holding period  
+- Metrics: cumulative PnL, Sharpe Ratio maximum drawdown (USDT), inventory  fill rate (%), turnover, average holding period  
 - Documented calibration for γ, k (AS) and spreads (NMM); sensitivity analysis included  
 - No live trading or exchange connectivity (simulation-only mode)  
 - Reduced-form modelling of queue position, latency and hidden liquidity  
@@ -77,4 +77,18 @@ The project can be launched using the `run.sh` script. By default, it installs d
 - **Normal mode **  
   ```bash
   ./run.sh
+
+
+# Thesis PDF
+
+A full thesis document accompanies this project, containing:
+
+- Detailed methodology and mathematical derivations  
+- Avellaneda–Stoikov model formulas  
+- Performance evaluation metrics 
+- Figures and charts for PnL, inventory
+- Literature review
+
+ [Download Thesis PDF](thesis.pdf)
+
 

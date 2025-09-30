@@ -13,8 +13,6 @@ The project is organised into modular components, each serving a specific role i
 
 MM-LAB/
 │
-├── env/               # Environment configuration files  
-├── figures/           # Plots and diagrams for the report  
 ├── logs/              # Simulation logs and output CSVs  
 │   ├── BTCUSDT_L2.csv  
 │   ├── ETHUSDT_L2.csv  

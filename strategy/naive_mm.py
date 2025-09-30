@@ -23,6 +23,9 @@ class NaiveMMStrategy:
 
             update = updates[0]
             mid_price = update.price
+            if mid_price is None:
+                continue  
+
             mid_prices.append(mid_price)
 
             if last_mid_price is not None:
@@ -32,14 +35,11 @@ class NaiveMMStrategy:
 
             last_mid_price = mid_price
 
-          
             dynamic_spread = self.base_spread + self.volatility_multiplier * volatility
-
             half_spread = dynamic_spread / 2
             bid_price = round(mid_price - half_spread, self.precision)
             ask_price = round(mid_price + half_spread, self.precision)
 
-            
             bid_qty = self.order_size if inventory < self.max_inventory else 0
             ask_qty = self.order_size if inventory > -self.max_inventory else 0
 
@@ -55,7 +55,6 @@ class NaiveMMStrategy:
                 if getattr(result, 'type', None) == 'own_trade':
                     ts_trades.append(result)
 
-           
             for tr in ts_trades:
                 if tr.side == 'BID':
                     inventory += tr.size
@@ -67,4 +66,3 @@ class NaiveMMStrategy:
             trades.extend(ts_trades)
 
         return trades, mid_prices
-

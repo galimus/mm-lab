@@ -89,6 +89,6 @@ A full thesis document accompanies this project, containing:
 - Figures and charts for PnL, inventory
 - Literature review
 
- [Download Thesis PDF](thesis.pdf)
+ [Download Thesis PDF](2025_AP_RMFE_pdf.pdf)
 
 

@@ -4,7 +4,6 @@ pandas
 seaborn
 ccxt
 websockets
-hyperliquid
 tabulate
 streamlit
 xlsxwriter

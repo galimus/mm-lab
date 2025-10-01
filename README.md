@@ -74,6 +74,10 @@ MM-LAB/
 The project can be launched using the `run.sh` script. By default, it installs dependencies, ensures the script is executable, and starts the Streamlit app.  
 
 ### Usage
+if first run, you need write
+```bash
+chmod +x run.sh
+
 - **Normal mode**  
   ```bash
   ./run.sh

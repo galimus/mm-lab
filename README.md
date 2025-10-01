@@ -75,14 +75,14 @@ The project can be launched using the `run.sh` script. By default, it installs d
 
 ### Usage
 
-
+#### First run
 ```bash
-# First run
 chmod +x run.sh
-
+```
 # Normal mode
+```bash
 ./run.sh
-
+```
 
 
 # Thesis PDF
